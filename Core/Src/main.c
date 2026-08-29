@@ -91,12 +91,12 @@ static void MX_USART3_UART_Init(void);
 
 
 uint32_t pwm_inputs[4] = {0,0,0,0};
-uint8_t pwm_inputs_sent[4] = {0,0,0,0};
+uint8_t pwm_inputs_sent[4] = {1,1,1,1};
 uint32_t pwm_inputs_last_tick[4] = {0,0,0,0};
 TIM_TypeDef* timers[4] = {TIM2, TIM1, TIM3, TIM4};
 
 uint8_t telemetry_inputs[4][11] = {0};
-uint8_t telemetry_inputs_sent[4] = {0};
+uint8_t telemetry_inputs_sent[4] = {1,1,1,1};
 uint32_t telemetry_inputs_last_tick[4] = {0};
 uint8_t telemetry_inputs_err[4] = {0};
 uint16_t synced_pwm_inputs[4] = {0,0,0,0};
@@ -171,7 +171,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		if(huart == telemetry_uarts[i]){
 			if(get_crc8(telemetry_inputs[i], 9) == telemetry_inputs[i][9]){
 				HAL_UART_Receive_DMA(huart, telemetry_inputs[i], 10);
-				telemetry_inputs_err[i] == 0; //clear any errors since a proper message was received
+				telemetry_inputs_err[i] = 0; //clear any errors since a proper message was received
 				telemetry_inputs_sent[i] = 0;
 				synced_pwm_inputs[i] = pwm_inputs[i];
 				telemetry_inputs_last_tick[i] = HAL_GetTick();
@@ -211,6 +211,21 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   if(GPIO_Pin == LoRa_DIO1_Pin) {
 	  handle_lora_irq = 1;
   }
+}
+
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+	__HAL_UART_CLEAR_FLAG(huart, huart->ErrorCode);
+	printf("oops");
+	for (int i = 0; i<4; i++){
+		if(huart == telemetry_uarts[i]){
+			telemetry_inputs_err[i] = 1;
+			telemetry_inputs_sent[i] = 0;
+			synced_pwm_inputs[i] = pwm_inputs[i];
+			telemetry_inputs_last_tick[i] = HAL_GetTick();
+		}
+	}
+
 }
 
 /* USER CODE END 0 */
@@ -271,16 +286,20 @@ int main(void)
   HAL_TIM_IC_Start_IT(&htim4, TIM_CHANNEL_1); // Primary channel - rising edge
   HAL_TIM_IC_Start(&htim4, TIM_CHANNEL_2);    // Secondary channel - falling edge
 
+  HAL_Delay(5);
 	for (int i = 0; i<4; i++){
 		HAL_UART_Receive_DMA(telemetry_uarts[i], telemetry_inputs[i], 10);
 	}
 	LoRa_Reset();
 	LoRa_initialize(hspi1);
-	uint8_t test_TX_reg[7] = {0xFF, 0x01, 0x00, 0x00, 0xFA, 0xFB, 0xFC};
-	LoRa_write_buf(0, test_TX_reg, 7);
+	uint8_t initializer[17] = {0xFF, 0xFE, 0xFD, 0xFC, 0xFB, 0xFA, 0xF9, 0xF8, 0xF7,0xF6,0xF5,0xF4,0xF3,0xF2,0xF1,0xF0, 0xEF};
+	//LoRa_write_buf(0, test_TX_reg, 7);
+	//HAL_Delay(10);
+	//LoRa_set_tx(0x00FFFF);
 	HAL_Delay(10);
-	LoRa_set_tx(0x00FFFF);
+	LoRa_tx(initializer, 17, 0x00FFFF);
 	HAL_Delay(10);
+
 	//printf("\n");
 
 	/*
@@ -332,6 +351,7 @@ int main(void)
 
 
 	  for (int i=0; i<4; i++){
+
 			if(!telemetry_inputs_sent[i] && telemetry_inputs_err[i] == 0){
 				HAL_GPIO_TogglePin (LED_GPIO_Port, LED_Pin);
 				/*
@@ -371,6 +391,8 @@ int main(void)
 					  telemetry_packet[15] = telemetry_inputs_last_tick[i]>>8;
 					  telemetry_packet[16] = telemetry_inputs_last_tick[i];
 					  telemetry_inputs_sent[i] = 1;
+					  memcpy(telemetry_packet + 2, telemetry_inputs[i],9);
+
 				}
 
 				if(telemetry_inputs_last_tick[i] +5 < HAL_GetTick()){
