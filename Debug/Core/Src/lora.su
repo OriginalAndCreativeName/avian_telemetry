@@ -1,0 +1,12 @@
+../Core/Src/lora.c:57:6:wait_busy_Tsw	16	static,ignoring_inline_asm
+../Core/Src/lora.c:63:9:LoRa_is_busy	8	static
+../Core/Src/lora.c:67:9:LoRa_tx_ready	4	static
+../Core/Src/lora.c:72:6:LoRa_HandleTXIrq	16	static
+../Core/Src/lora.c:85:6:LoRa_write_reg	24	static
+../Core/Src/lora.c:98:6:LoRa_read_reg	24	static
+../Core/Src/lora.c:112:6:LoRa_write_buf	24	static
+../Core/Src/lora.c:126:6:LoRa_set_packet_len	32	static
+../Core/Src/lora.c:144:6:LoRa_tx	24	static
+../Core/Src/lora.c:166:6:LoRa_set_tx	24	static
+../Core/Src/lora.c:180:6:LoRa_Reset	8	static
+../Core/Src/lora.c:191:6:LoRa_initialize	32	static
